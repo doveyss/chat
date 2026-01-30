@@ -109,7 +109,7 @@
       border-radius: 4px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.5);
       padding: 4px 0;
-      min-width: 120px;
+      min-width: 140px;
       display: none;
       z-index: 10;
     }
@@ -119,10 +119,13 @@
     }
 
     .menu-item {
-      padding: 8px 12px;
+      padding: 10px 16px;
       font-size: 14px;
       cursor: pointer;
       color: var(--wa-text);
+      text-align: left;
+      margin: 2px 6px;
+      border-radius: 4px;
     }
 
     .menu-item.logout {
@@ -367,6 +370,82 @@
       min-height: 16px;
     }
 
+    /* Loading overlay while messages load */
+    .loading-overlay {
+      position: absolute;
+      inset: 60px 0 0; /* below header */
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loader {
+      border: 4px solid #202c33;
+      border-top: 4px solid #00a884;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--wa-subtle);
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Fullscreen BBC News overlay */
+    .image-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      align-items: stretch;
+      justify-content: center;
+      z-index: 30;
+    }
+
+    .image-overlay.active {
+      display: flex;
+    }
+
+    .image-overlay iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Floating button bottom right */
+    .fab {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #00a884;
+      color: #0b141a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      z-index: 31;
+      user-select: none;
+    }
+
     /* Mobile tweaks */
     @media (max-width: 600px) {
       .header {
@@ -381,6 +460,10 @@
       .login-card {
         border-radius: 0;
         box-shadow: none;
+      }
+      .fab {
+        bottom: 16px;
+        right: 16px;
       }
     }
   </style>
@@ -403,6 +486,21 @@
       </div>
     </div>
 
+    <!-- Loading overlay while chat messages load -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loader"></div>
+      <div class="loading-text">Loading chat…</div>
+    </div>
+
+    <!-- Fullscreen BBC News overlay -->
+    <div class="image-overlay" id="imageOverlay">
+      <iframe
+        id="bbcFrame"
+        src="https://www.bbc.com/sport/cricket/article/cpmd71e0ne8o"
+        title="BBC News - England Cricket"
+      ></iframe>
+    </div>
+
     <!-- Chat UI -->
     <div class="header">
       <div class="avatar" id="avatar">Am</div>
@@ -422,6 +520,8 @@
 
     <!-- Search bar -->
     <div class="search-bar" id="searchBar">
+      
+
       <input
         id="searchInput"
         class="search-input"
@@ -442,12 +542,27 @@
     </div>
   </div>
 
+  <!-- Floating button to toggle BBC News overlay -->
+  <div class="fab" id="imageToggleBtn" title="Show BBC News">📰</div>
+
   <script>
     const ME_NAME = "Samridhi";
     const CHAT_PASSWORD = "Js123";
     const LOGIN_KEY = "chat_logged_in_v1";
 
     let allMessages = [];
+
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const imageOverlay = document.getElementById("imageOverlay");
+    const imageToggleBtn = document.getElementById("imageToggleBtn");
+
+    function showLoading() {
+      loadingOverlay.classList.add("active");
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.remove("active");
+    }
 
     function formatTime(dateStr) {
       const d = new Date(dateStr);
@@ -532,6 +647,7 @@
     }
 
     async function loadMessages() {
+      showLoading();
       try {
         const res = await fetch("data.json?t=" + Date.now());
         const messages = await res.json();
@@ -540,6 +656,8 @@
         renderMessages(currentQuery);
       } catch (e) {
         console.error(e);
+      } finally {
+        hideLoading();
       }
     }
 
@@ -586,8 +704,8 @@
 
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
-      document.getElementById("loginOverlay").style.display = "flex";
       menu.classList.remove("open");
+      window.location.replace("about:blank");
     });
 
     // Login handling
@@ -614,6 +732,19 @@
     passwordInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         tryLogin();
+      }
+    });
+
+    // Floating button toggles BBC News overlay
+    imageToggleBtn.addEventListener("click", () => {
+      imageOverlay.classList.toggle("active");
+    });
+
+    // Clicking overlay also hides it
+    imageOverlay.addEventListener("click", (e) => {
+      // Avoid closing when clicking inside iframe area if needed
+      if (e.target === imageOverlay) {
+        imageOverlay.classList.remove("active");
       }
     });
 
