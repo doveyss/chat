@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat Admin</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b141a;
+      color: #e9edef;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .desc {
+      font-size: 13px;
+      color: #8696a0;
+      margin-bottom: 16px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 260px;
+      background: #111b21;
+      color: #e9edef;
+      border: 1px solid #202c33;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+
+    .buttons {
+      margin: 12px 0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #00a884;
+      color: #111b21;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #202c33;
+      color: #e9edef;
+    }
+
+    pre {
+      background: #111b21;
+      color: #e9edef;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+      max-height: 260px;
+    }
+
+    a.link {
+      color: #53bdeb;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WhatsApp Chat Admin</h1>
+    <div class="desc">
+      Paste your exported WhatsApp chat (Without Media). Click “Parse” to convert it,
+      then “Download JSON” and replace <code>data.json</code> on your server.  
+      Back to <a href="index.html" class="link">chat view</a>.
+    </div>
+
+    <textarea id="input" placeholder="10/01/2026, 4:52 am - NovaStack: You should probably have these too&#10;10/01/2026, 4:53 am - Samridhi: What's nova stack bby"></textarea>
+
+    <div class="buttons">
+      <button id="parseBtn">Parse</button>
+      <button id="downloadBtn" class="secondary" disabled>Download JSON</button>
+    </div>
+
+    <pre id="output">[]</pre>
+  </div>
+
+  <script>
+    function parseLine(line) {
+      // Example: "10/01/2026, 4:52 am - NovaStack: Message text"
+      const match = line.match(/^(\d{1,2}\/\d{1,2}\/\d{4}),\s+([^-\u2013]+(?:am|pm|AM|PM))\s+-\s+([^:]+):\s+([\s\S]+)$/);
+      if (!match) return null;
+
+      const [_, datePart, timePartRaw, author, text] = match;
+      const timePart = timePartRaw.replace(/\u202f/g, " ").trim(); // remove narrow no-break space
+      const dateTimeStr = datePart.split("/").reverse().join("-") + " " + timePart;
+
+      const d = new Date(dateTimeStr);
+      return {
+        date: d.toISOString(),
+        author: author.trim(),
+        text: text.trim()
+      };
+    }
+
+    function parseChat(text) {
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const messages = [];
+
+      for (let line of lines) {
+        const msg = parseLine(line);
+        if (msg) {
+          messages.push(msg);
+        } else if (messages.length > 0) {
+          // continuation of previous message (multi-line)
+          messages[messages.length - 1].text += "\n" + line;
+        }
+      }
+
+      return messages;
+    }
+
+    const input = document.getElementById("input");
+    const output = document.getElementById("output");
+    const parseBtn = document.getElementById("parseBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let lastMessages = [];
+
+    parseBtn.onclick = () => {
+      const raw = input.value.trim();
+      if (!raw) {
+        alert("Paste some WhatsApp exported text first.");
+        return;
+      }
+      const msgs = parseChat(raw);
+      lastMessages = msgs;
+      output.textContent = JSON.stringify(msgs, null, 2);
+      downloadBtn.disabled = msgs.length === 0;
+    };
+
+    downloadBtn.onclick = () => {
+      const blob = new Blob([JSON.stringify(lastMessages, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+  </script>
+</body>
+</html>
