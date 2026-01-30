@@ -15,6 +15,7 @@
       --wa-subtle: #8696a0;
       --wa-link: #53bdeb;
       --wa-highlight-bg: #615b30;
+      --wa-danger: #eb4d4b;
     }
 
     * {
@@ -39,6 +40,7 @@
       background: var(--wa-chat-bg);
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     /* Header (top bar) */
@@ -91,10 +93,44 @@
       font-size: 18px;
       color: var(--wa-subtle);
       align-items: center;
+      position: relative;
     }
 
-    .search-toggle {
+    .header-actions span {
       cursor: pointer;
+    }
+
+    /* Simple dropdown menu for logout */
+    .menu {
+      position: absolute;
+      top: 40px;
+      right: 0;
+      background: #111b21;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      padding: 4px 0;
+      min-width: 120px;
+      display: none;
+      z-index: 10;
+    }
+
+    .menu.open {
+      display: block;
+    }
+
+    .menu-item {
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--wa-text);
+    }
+
+    .menu-item.logout {
+      color: var(--wa-danger);
+    }
+
+    .menu-item:hover {
+      background: #202c33;
     }
 
     /* Search bar (under header) */
@@ -264,6 +300,73 @@
       text-decoration: none;
     }
 
+    /* Login screen overlay */
+    .login-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, #202c33 0, #0b141a 45%, #000 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .login-card {
+      background: #111b21;
+      border-radius: 16px;
+      padding: 24px 20px 20px;
+      width: min(360px, 90vw);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .login-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: var(--wa-subtle);
+    }
+
+    .login-input {
+      margin-top: 8px;
+      width: 100%;
+      background: #0b141a;
+      border-radius: 999px;
+      border: 1px solid #202c33;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--wa-text);
+      outline: none;
+    }
+
+    .login-input::placeholder {
+      color: var(--wa-subtle);
+    }
+
+    .login-button {
+      margin-top: 8px;
+      width: 100%;
+      border-radius: 999px;
+      border: none;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #00a884;
+      color: #0b141a;
+    }
+
+    .login-error {
+      font-size: 12px;
+      color: var(--wa-danger);
+      min-height: 16px;
+    }
+
     /* Mobile tweaks */
     @media (max-width: 600px) {
       .header {
@@ -275,11 +378,32 @@
       .bubble {
         max-width: 90%;
       }
+      .login-card {
+        border-radius: 0;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
 <body>
   <div class="app">
+    <!-- Login overlay -->
+    <div class="login-overlay" id="loginOverlay">
+      <div class="login-card">
+        <div class="login-title">Enter Chat Password</div>
+        <div class="login-subtitle">This chat is private. Please enter the password to continue.</div>
+        <input
+          id="passwordInput"
+          class="login-input"
+          type="password"
+          placeholder="Password"
+        />
+        <button id="loginButton" class="login-button">Login</button>
+        <div id="loginError" class="login-error"></div>
+      </div>
+    </div>
+
+    <!-- Chat UI -->
     <div class="header">
       <div class="avatar" id="avatar">Am</div>
       <div class="header-text">
@@ -288,7 +412,10 @@
       </div>
       <div class="header-actions">
         <span class="search-toggle" id="searchToggle">🔍</span>
-        <span>⋮</span>
+        <span id="menuToggle">⋮</span>
+        <div class="menu" id="menu">
+          <div class="menu-item logout" id="logoutBtn">Logout</div>
+        </div>
       </div>
     </div>
 
@@ -316,6 +443,9 @@
 
   <script>
     const ME_NAME = "Samridhi";
+    const CHAT_PASSWORD = "Js123";
+    const LOGIN_KEY = "chat_logged_in_v1";
+
     let allMessages = [];
 
     function formatTime(dateStr) {
@@ -431,7 +561,64 @@
       renderMessages(value);
     });
 
-    loadMessages();
+    // Menu + logout
+    const menuToggle = document.getElementById("menuToggle");
+    const menu = document.getElementById("menu");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    menuToggle.addEventListener("click", () => {
+      menu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!menu.contains(e.target) && e.target !== menuToggle) {
+        menu.classList.remove("open");
+      }
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem(LOGIN_KEY);
+      document.getElementById("loginOverlay").style.display = "flex";
+      menu.classList.remove("open");
+    });
+
+    // Login handling
+    const loginOverlay = document.getElementById("loginOverlay");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginButton = document.getElementById("loginButton");
+    const loginError = document.getElementById("loginError");
+
+    function tryLogin() {
+      const value = passwordInput.value.trim();
+      if (value === CHAT_PASSWORD) {
+        localStorage.setItem(LOGIN_KEY, "true");
+        loginOverlay.style.display = "none";
+        loginError.textContent = "";
+        passwordInput.value = "";
+        loadMessages();
+      } else {
+        loginError.textContent = "Incorrect password.";
+      }
+    }
+
+    loginButton.addEventListener("click", tryLogin);
+
+    passwordInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        tryLogin();
+      }
+    });
+
+    // On load: check login state
+    window.addEventListener("load", () => {
+      const loggedIn = localStorage.getItem(LOGIN_KEY) === "true";
+      if (loggedIn) {
+        loginOverlay.style.display = "none";
+        loadMessages();
+      } else {
+        loginOverlay.style.display = "flex";
+      }
+    });
   </script>
 </body>
 </html>
