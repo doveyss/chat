@@ -412,6 +412,7 @@
       </div>
       <div class="header-actions">
         <span class="search-toggle" id="searchToggle">🔍</span>
+        <span id="refreshBtn" title="Refresh chat">⟳</span>
         <span id="menuToggle">⋮</span>
         <div class="menu" id="menu">
           <div class="menu-item logout" id="logoutBtn">Logout</div>
@@ -535,7 +536,8 @@
         const res = await fetch("data.json?t=" + Date.now());
         const messages = await res.json();
         allMessages = messages;
-        renderMessages();
+        const currentQuery = document.getElementById("searchInput").value || "";
+        renderMessages(currentQuery);
       } catch (e) {
         console.error(e);
       }
@@ -559,6 +561,12 @@
     searchInput.addEventListener("input", (e) => {
       const value = e.target.value;
       renderMessages(value);
+    });
+
+    // Refresh button
+    const refreshBtn = document.getElementById("refreshBtn");
+    refreshBtn.addEventListener("click", () => {
+      loadMessages();
     });
 
     // Menu + logout
@@ -622,4 +630,3 @@
   </script>
 </body>
 </html>
-
